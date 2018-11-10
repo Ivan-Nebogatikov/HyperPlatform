@@ -281,6 +281,8 @@ _Use_decl_annotations_ static void *VmpBuildMsrBitmap() {
   const auto bitmap_read_high = bitmap_read_low + 1024;
   RtlFillMemory(bitmap_read_low, 1024, 0xff);   // read        0 -     1fff
   RtlFillMemory(bitmap_read_high, 1024, 0xff);  // read c0000000 - c0001fff
+  RtlFillMemory(bitmap_read_high + 1024, 1024, 0xff);
+  RtlFillMemory(bitmap_read_high + 2048, 1024, 0xff);
 
   // Ignore IA32_MPERF (000000e7) and IA32_APERF (000000e8)
   RTL_BITMAP bitmap_read_low_header = {};

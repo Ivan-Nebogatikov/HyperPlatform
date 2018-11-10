@@ -282,7 +282,7 @@ _Use_decl_annotations_ static void VmmpHandleVmExit(
     case VmxExitReason::kMsrRead:
       VmmpHandleMsrReadAccess(guest_context);
       break;
-    case VmxExitReason::kMsrWrite:
+    case VmxExitReason::kMsrWrite:  
       VmmpHandleMsrWriteAccess(guest_context);
       break;
     case VmxExitReason::kMonitorTrapFlag:
@@ -491,8 +491,11 @@ _Use_decl_annotations_ static void VmmpHandleMsrReadAccess(
 _Use_decl_annotations_ static void VmmpHandleMsrWriteAccess(
     GuestContext *guest_context) {
   HYPERPLATFORM_PERFORMANCE_MEASURE_THIS_SCOPE();
+  HYPERPLATFORM_LOG_DEBUG_SAFE("????");
   VmmpHandleMsrAccess(guest_context, false);
 }
+
+static Msr shadowMsr;
 
 // RDMSR and WRMSR
 _Use_decl_annotations_ static void VmmpHandleMsrAccess(
@@ -538,6 +541,8 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
 
   LARGE_INTEGER msr_value = {};
   if (read_access) {
+    if (msr == Msr::kIa32Lstar)
+      HYPERPLATFORM_LOG_DEBUG_SAFE("OLOLO");
     if (transfer_to_vmcs) {
       if (is_64bit_vmcs) {
         msr_value.QuadPart = UtilVmRead64(vmcs_field);
@@ -550,6 +555,7 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
     guest_context->gp_regs->ax = msr_value.LowPart;
     guest_context->gp_regs->dx = msr_value.HighPart;
   } else {
+    HYPERPLATFORM_LOG_DEBUG_SAFE("!!!!!!");
     msr_value.LowPart = static_cast<ULONG>(guest_context->gp_regs->ax);
     msr_value.HighPart = static_cast<ULONG>(guest_context->gp_regs->dx);
     if (transfer_to_vmcs) {
