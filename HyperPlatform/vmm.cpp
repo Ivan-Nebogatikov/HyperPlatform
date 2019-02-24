@@ -282,7 +282,7 @@ _Use_decl_annotations_ static void VmmpHandleVmExit(
     case VmxExitReason::kMsrRead:
       VmmpHandleMsrReadAccess(guest_context);
       break;
-    case VmxExitReason::kMsrWrite:  
+    case VmxExitReason::kMsrWrite:
       VmmpHandleMsrWriteAccess(guest_context);
       break;
     case VmxExitReason::kMonitorTrapFlag:
@@ -491,11 +491,11 @@ _Use_decl_annotations_ static void VmmpHandleMsrReadAccess(
 _Use_decl_annotations_ static void VmmpHandleMsrWriteAccess(
     GuestContext *guest_context) {
   HYPERPLATFORM_PERFORMANCE_MEASURE_THIS_SCOPE();
-  HYPERPLATFORM_LOG_DEBUG_SAFE("????");
   VmmpHandleMsrAccess(guest_context, false);
 }
 
-static Msr shadowMsr;
+static LARGE_INTEGER shadowMsr;
+static bool wasWrite;
 
 // RDMSR and WRMSR
 _Use_decl_annotations_ static void VmmpHandleMsrAccess(
@@ -541,31 +541,42 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
 
   LARGE_INTEGER msr_value = {};
   if (read_access) {
-    if (msr == Msr::kIa32Lstar)
-      HYPERPLATFORM_LOG_DEBUG_SAFE("OLOLO");
-    if (transfer_to_vmcs) {
-      if (is_64bit_vmcs) {
-        msr_value.QuadPart = UtilVmRead64(vmcs_field);
-      } else {
-        msr_value.QuadPart = UtilVmRead(vmcs_field);
-      }
-    } else {
-      msr_value.QuadPart = UtilReadMsr64(msr);
+    if (wasWrite) {
+      //HYPERPLATFORM_LOG_DEBUG_SAFE("OLOLO = %08Ix", shadowMsr.LowPart);
+      guest_context->gp_regs->ax = shadowMsr.LowPart;
+      guest_context->gp_regs->dx = shadowMsr.HighPart;
     }
-    guest_context->gp_regs->ax = msr_value.LowPart;
-    guest_context->gp_regs->dx = msr_value.HighPart;
-  } else {
-    HYPERPLATFORM_LOG_DEBUG_SAFE("!!!!!!");
-    msr_value.LowPart = static_cast<ULONG>(guest_context->gp_regs->ax);
-    msr_value.HighPart = static_cast<ULONG>(guest_context->gp_regs->dx);
-    if (transfer_to_vmcs) {
-      if (is_64bit_vmcs) {
-        UtilVmWrite64(vmcs_field, static_cast<ULONG_PTR>(msr_value.QuadPart));
+    else {
+      if (transfer_to_vmcs) {
+        if (is_64bit_vmcs) {
+          msr_value.QuadPart = UtilVmRead64(vmcs_field);
+        } else {
+          msr_value.QuadPart = UtilVmRead(vmcs_field);
+        }
       } else {
-        UtilVmWrite(vmcs_field, static_cast<ULONG_PTR>(msr_value.QuadPart));
+        msr_value.QuadPart = UtilReadMsr64(msr);
       }
-    } else {
-      UtilWriteMsr64(msr, msr_value.QuadPart);
+      guest_context->gp_regs->ax = msr_value.LowPart;
+      guest_context->gp_regs->dx = msr_value.HighPart;
+    }
+  } else {
+    if (!wasWrite) {
+      msr_value.LowPart = static_cast<ULONG>(guest_context->gp_regs->ax);
+      msr_value.HighPart = static_cast<ULONG>(guest_context->gp_regs->dx);
+      /*if (transfer_to_vmcs) {
+        if (is_64bit_vmcs) {
+          UtilVmWrite64(vmcs_field, static_cast<ULONG_PTR>(msr_value.QuadPart));
+        } else {
+          UtilVmWrite(vmcs_field, static_cast<ULONG_PTR>(msr_value.QuadPart));
+        }
+      } else {
+        UtilWriteMsr64(msr, msr_value.QuadPart);
+      }*/
+      wasWrite = true;
+      shadowMsr = msr_value;
+
+      HYPERPLATFORM_LOG_DEBUG_SAFE("OLOLO!!!! = %08Ix", shadowMsr.LowPart);
+      // HYPERPLATFORM_LOG_DEBUG_SAFE("OLOLO");
     }
   }
 
