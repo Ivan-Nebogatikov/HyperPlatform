@@ -628,7 +628,7 @@ enum class Msr : unsigned int {
   kIa32Efer = 0xC0000080,
   kIa32Star = 0xC0000081,
   kIa32Lstar = 0xC0000082,
-
+  //kIa32Cstar = 0xC0000083,
   kIa32Fmask = 0xC0000084,
 
   kIa32FsBase = 0xC0000100,

@@ -494,8 +494,8 @@ _Use_decl_annotations_ static void VmmpHandleMsrWriteAccess(
   VmmpHandleMsrAccess(guest_context, false);
 }
 
-static LARGE_INTEGER shadowMsr;
-static bool wasWrite;
+static LARGE_INTEGER shadowMsrl, shadowMsrc;
+static bool wasWritel = false, wasWritec = false;
 
 // RDMSR and WRMSR
 _Use_decl_annotations_ static void VmmpHandleMsrAccess(
@@ -540,43 +540,88 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
                      VmcsField::kHostIa32PerfGlobalCtrlHigh);
 
   LARGE_INTEGER msr_value = {};
-  if (read_access) {
-    if (wasWrite) {
-      //HYPERPLATFORM_LOG_DEBUG_SAFE("OLOLO = %08Ix", shadowMsr.LowPart);
-      guest_context->gp_regs->ax = shadowMsr.LowPart;
-      guest_context->gp_regs->dx = shadowMsr.HighPart;
-    }
-    else {
-      if (transfer_to_vmcs) {
-        if (is_64bit_vmcs) {
-          msr_value.QuadPart = UtilVmRead64(vmcs_field);
-        } else {
-          msr_value.QuadPart = UtilVmRead(vmcs_field);
-        }
-      } else {
-        msr_value.QuadPart = UtilReadMsr64(msr);
-      }
-      guest_context->gp_regs->ax = msr_value.LowPart;
-      guest_context->gp_regs->dx = msr_value.HighPart;
-    }
-  } else {
-    if (!wasWrite) {
-      msr_value.LowPart = static_cast<ULONG>(guest_context->gp_regs->ax);
-      msr_value.HighPart = static_cast<ULONG>(guest_context->gp_regs->dx);
-      /*if (transfer_to_vmcs) {
-        if (is_64bit_vmcs) {
-          UtilVmWrite64(vmcs_field, static_cast<ULONG_PTR>(msr_value.QuadPart));
-        } else {
-          UtilVmWrite(vmcs_field, static_cast<ULONG_PTR>(msr_value.QuadPart));
-        }
-      } else {
-        UtilWriteMsr64(msr, msr_value.QuadPart);
-      }*/
-      wasWrite = true;
-      shadowMsr = msr_value;
 
-      HYPERPLATFORM_LOG_DEBUG_SAFE("OLOLO!!!! = %08Ix", shadowMsr.LowPart);
-      // HYPERPLATFORM_LOG_DEBUG_SAFE("OLOLO");
+  /*if (msr == Msr::kIa32Lstar) {
+    if (read_access) {
+      if (wasWritel) {
+        guest_context->gp_regs->ax = shadowMsrl.LowPart;
+        guest_context->gp_regs->dx = shadowMsrl.HighPart;
+      }
+      else
+      {
+        wasWritel = true;
+        //default read
+        if (transfer_to_vmcs) {
+          if (is_64bit_vmcs) {
+            msr_value.QuadPart = UtilVmRead64(vmcs_field);
+          } else {
+            msr_value.QuadPart = UtilVmRead(vmcs_field);
+          }
+        } else {
+          msr_value.QuadPart = UtilReadMsr64(msr);
+        }
+        guest_context->gp_regs->ax = msr_value.LowPart;
+        guest_context->gp_regs->dx = msr_value.HighPart;
+
+        shadowMsrl = msr_value;
+      }
+    } else {
+      if (!wasWritel) {
+        shadowMsrl = msr_value;
+      }
+    }
+  }*/ /*else
+  if (msr == Msr::kIa32Cstar) {
+    if (read_access) {
+      if (wasWritec) {
+        guest_context->gp_regs->ax = shadowMsrc.LowPart;
+        guest_context->gp_regs->dx = shadowMsrc.HighPart;
+      } else {
+        wasWritec = true;
+        // default read
+        if (transfer_to_vmcs) {
+          if (is_64bit_vmcs) {
+            msr_value.QuadPart = UtilVmRead64(vmcs_field);
+          } else {
+            msr_value.QuadPart = UtilVmRead(vmcs_field);
+          }
+        } else {
+          msr_value.QuadPart = UtilReadMsr64(msr);
+        }
+        guest_context->gp_regs->ax = msr_value.LowPart;
+        guest_context->gp_regs->dx = msr_value.HighPart;
+
+        shadowMsrc = msr_value;
+      }
+    } else {
+      if (!wasWritec) {
+        shadowMsrc = msr_value;
+      }
+    }
+  }
+  else*/ if (read_access) {
+    if (transfer_to_vmcs) {
+      if (is_64bit_vmcs) {
+        msr_value.QuadPart = UtilVmRead64(vmcs_field);
+      } else {
+        msr_value.QuadPart = UtilVmRead(vmcs_field);
+      }
+    } else {
+      msr_value.QuadPart = UtilReadMsr64(msr);
+    }
+    guest_context->gp_regs->ax = msr_value.LowPart;
+    guest_context->gp_regs->dx = msr_value.HighPart;
+  } else {
+    msr_value.LowPart = static_cast<ULONG>(guest_context->gp_regs->ax);
+    msr_value.HighPart = static_cast<ULONG>(guest_context->gp_regs->dx);
+    if (transfer_to_vmcs) {
+      if (is_64bit_vmcs) {
+        UtilVmWrite64(vmcs_field, static_cast<ULONG_PTR>(msr_value.QuadPart));
+      } else {
+        UtilVmWrite(vmcs_field, static_cast<ULONG_PTR>(msr_value.QuadPart));
+      }
+    } else {
+      UtilWriteMsr64(msr, msr_value.QuadPart);
     }
   }
 
